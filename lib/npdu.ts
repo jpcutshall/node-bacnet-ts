@@ -1,19 +1,18 @@
-'use strict';
-
-const baEnum      = require('./enum');
+import { InternalBuffer } from './types';
+import * as baEnum      from './enum';
 const debug       = require('debug')('bacnet:npdu:debug');
 const trace       = require('debug')('bacnet:npdu:trace');
 
-const DEFAULT_HOP_COUNT = 0xFF;
-const BACNET_PROTOCOL_VERSION = 1;
+const DEFAULT_HOP_COUNT = 0xFF as const;
+const BACNET_PROTOCOL_VERSION = 1 as const;
 const BACNET_ADDRESS_TYPES = {
   NONE: 0,
   IP: 1
-};
+} as const;
 
-const decodeTarget = (buffer, offset) => {
+const decodeTarget = (buffer: Buffer, offset: number) => {
   let len = 0;
-  const target = {type: BACNET_ADDRESS_TYPES.NONE, net: (buffer[offset + len++] << 8) | (buffer[offset + len++] << 0)};
+  const target = {type: BACNET_ADDRESS_TYPES.NONE, net: (buffer[offset + len++] << 8) | (buffer[offset + len++] << 0), adr: [] as number[]};
   const adrLen = buffer[offset + len++];
   if (adrLen > 0) {
     target.adr = [];
@@ -42,14 +41,14 @@ const encodeTarget = (buffer, target) => {
   }
 };
 
-module.exports.decodeFunction = (buffer, offset) => {
+export const decodeFunction = (buffer: Buffer, offset: number) => {
   if (buffer[offset + 0] !== BACNET_PROTOCOL_VERSION) {
     return undefined;
   }
   return buffer[offset + 1];
 };
 
-module.exports.decode = (buffer, offset) => {
+export const decode = (buffer: Buffer, offset: number) => {
   let adrLen;
   const orgOffset = offset;
   offset++;
@@ -94,7 +93,7 @@ module.exports.decode = (buffer, offset) => {
   };
 };
 
-module.exports.encode = (buffer, funct, destination, source, hopCount, networkMsgType, vendorId) => {
+export const encode = (buffer: InternalBuffer, funct, destination, source, hopCount, networkMsgType, vendorId) => {
   const hasDestination = destination && destination.net > 0;
   const hasSource = source && source.net > 0 && source.net !== 0xFFFF;
 

@@ -8,12 +8,12 @@ const usc               = require('underscore');
 
 // Local Modules
 const baTransport       = require('./transport');
-const baServices        = require('./services');
+import * as baServices from './services';
 const baAsn1            = require('./asn1');
 const baApdu            = require('./apdu');
 const baNpdu            = require('./npdu');
 const baBvlc            = require('./bvlc');
-const baEnum            = require('./enum');
+import * as baEnum from './enum';
 
 const ALL_INTERFACES = '0.0.0.0';
 const LOCALHOST_INTERFACES_IPV4 = '127.0.0.1';
@@ -170,7 +170,7 @@ class Client extends EventEmitter {
    * @returns {{offset: (number), buffer: *}}
    * @private
    */
-  _getBuffer(isForwarded) {
+  _getBuffer(isForwarded: boolean) {
     return Object.assign({}, {
       buffer: Buffer.alloc(this._transport.getMaxPayload()),
       offset: isForwarded ? BVLC_FWD_HEADER_LENGTH : BVLC_HEADER_LENGTH
@@ -458,7 +458,7 @@ class Client extends EventEmitter {
    * @returns {*}
    * @private
    */
-  _handleNpdu(buffer, offset, msgLength, header) {
+  _handleNpdu(buffer: Buffer, offset: number, msgLength: number, header: {func: number, sender: {address: string, forwardedFrom: string | }}) {
     // Check data length
     if (msgLength <= 0) {
       return trace('No NPDU data -> Drop package');
@@ -488,7 +488,7 @@ class Client extends EventEmitter {
    * @returns {*}
    * @private
    */
-  _receiveData(buffer, remoteAddress) {
+  _receiveData(buffer: Buffer, remoteAddress) {
     // Check data length
     if (buffer.length < baEnum.BVLC_HEADER_LENGTH) {
       return trace('Received invalid data -> Drop package');

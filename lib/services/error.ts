@@ -3,12 +3,12 @@
 const baAsn1 = require('../asn1');
 const baEnum = require('../enum');
 
-module.exports.encode = (buffer, errorClass, errorCode) => {
+export const encode = (buffer, errorClass, errorCode) => {
   baAsn1.encodeApplicationEnumerated(buffer, errorClass);
   baAsn1.encodeApplicationEnumerated(buffer, errorCode);
 };
 
-module.exports.decode = (buffer, offset) => {
+export const decode = (buffer: Buffer, offset: number) => {
   const orgOffset = offset;
   let result;
   result = baAsn1.decodeTagNumberAndValue(buffer, offset);
@@ -26,7 +26,7 @@ module.exports.decode = (buffer, offset) => {
   };
 };
 
-module.exports.buildMessage = function (result) {
+export const buildMessage = function (result) {
   return 'BacnetError Class: ' + baEnum.ErrorClassName[result.class] + ' ' +
     '(' + result.class + ') ' +
     'Code: ' + baEnum.ErrorCodeName[result.code] + ' (' + result.code + ')';
