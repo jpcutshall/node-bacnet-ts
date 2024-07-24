@@ -1,5 +1,6 @@
 import { InternalBuffer } from './types';
 import * as baEnum      from './enum';
+
 const debug       = require('debug')('bacnet:npdu:debug');
 const trace       = require('debug')('bacnet:npdu:trace');
 
@@ -93,7 +94,7 @@ export const decode = (buffer: Buffer, offset: number) => {
   };
 };
 
-export const encode = (buffer: InternalBuffer, funct, destination, source, hopCount, networkMsgType, vendorId) => {
+export const encode = (buffer: InternalBuffer, funct: number, destination, source: any, hopCount?: number, networkMsgType, vendorId) => {
   const hasDestination = destination && destination.net > 0;
   const hasSource = source && source.net > 0 && source.net !== 0xFFFF;
 

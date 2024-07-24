@@ -1,18 +1,29 @@
-'use strict';
+import { EventEmitter } from 'events';
+import {createSocket, Socket} from "dgram";
 
-const createSocket      = require('dgram').createSocket;
-const EventEmitter      = require('events').EventEmitter;
-const debug             = require('debug')('bacnet:transport:debug');
-const trace             = require('debug')('bacnet:transport:trace');
+const debug = require('debug')('bacnet:transport:debug');
+const trace = require('debug')('bacnet:transport:trace');
 
 const DEFAULT_BACNET_PORT = 47808;
 
+export type TransportSettings = {
+  port: number,
+  interface: string,
+  broadcastAddress: string,
+  reuseAddr: boolean
+}
+
 class Transport extends EventEmitter {
-  constructor(settings) {
+  private _lastSendMessages: {[key: string]: Buffer}
+  private _settings: TransportSettings
+  private _server: Socket;
+  ownAddress: ReturnType<Socket["address"]>
+
+  constructor(settings: TransportSettings) {
     super();
     this._lastSendMessages = {};
     this._settings = settings;
-    this._server = createSocket({type: 'udp4', reuseAddr: settings.reuseAddr});
+    this._server = createSocket({ type: 'udp4', reuseAddr: settings.reuseAddr });
     this._server.on('message', (msg, rinfo) => {
       // Check for pot. duplicate messages
       if (this.ownAddress.port === rinfo.port) {
@@ -79,4 +90,4 @@ class Transport extends EventEmitter {
     this._server.close();
   }
 }
-module.exports = Transport;
+export default Transport;

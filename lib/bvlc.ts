@@ -1,12 +1,10 @@
-'use strict';
-
-const baEnum      = require('./enum');
+import * as baEnum  from './enum';
 const debug       = require('debug')('bacnet:bvlc:debug');
 const trace       = require('debug')('bacnet:bvlc:trace');
 
 const DEFAULT_BACNET_PORT = 47808;
 
-module.exports.encode = (buffer, func, msgLength, originatingIP) => {
+export const encode = (buffer: Buffer, func: number, msgLength: number, originatingIP: string) => {
   buffer[0] = baEnum.BVLL_TYPE_BACNET_IP;
   buffer[1] = func;
   buffer[2] = (msgLength & 0xFF00) >> 8;
@@ -37,14 +35,14 @@ module.exports.encode = (buffer, func, msgLength, originatingIP) => {
   return baEnum.BVLC_HEADER_LENGTH;
 };
 
-module.exports.decode = (buffer, _offset) => {
-  let len;
+export const decode = (buffer: Buffer, _offset: number) => {
+  let len: number;
   const func = buffer[1];
   const msgLength = (buffer[2] << 8) | (buffer[3] << 0);
   if (buffer[0] !== baEnum.BVLL_TYPE_BACNET_IP || buffer.length !== msgLength) {
     return undefined;
   }
-  let originatingIP = null;
+  let originatingIP: string | null = null;
   switch (func) {
     case baEnum.BvlcResultPurpose.BVLC_RESULT:
     case baEnum.BvlcResultPurpose.ORIGINAL_UNICAST_NPDU:

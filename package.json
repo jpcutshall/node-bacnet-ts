@@ -66,8 +66,7 @@
   },
   "homepage": "https://github.com/BiancoRoyal/node-bacstack#readme",
   "dependencies": {
-    "@types/underscore": "^1.11.15",
-    "debug": "^4.1.1",
+    "debug": "^4.3.5",
     "iconv-lite": "^0.5.1",
     "underscore": "^1.13.6"
   },
@@ -77,6 +76,8 @@
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
+    "@types/node": "^20.14.12",
+    "@types/underscore": "^1.11.15",
     "chai": "^4.2.0",
     "conventional-changelog-cli": "^2.0.27",
     "eslint": "^7.1.0",

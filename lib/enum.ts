@@ -1,4 +1,4 @@
-import usc from "underscore"
+import * as usc from "underscore"
 
 /**
  * Turn an enum into a string suitable for debugging.

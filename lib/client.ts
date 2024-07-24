@@ -1,19 +1,20 @@
-'use strict';
+
 
 // Util Modules
-const EventEmitter      = require('events').EventEmitter;
-const debug             = require('debug')('bacnet:client:debug');
-const trace             = require('debug')('bacnet:client:trace');
-const usc               = require('underscore');
+import { EventEmitter } from 'events';
+const debug = require('debug')('bacnet:transport:debug');
+import * as usc from 'underscore'
 
 // Local Modules
-const baTransport       = require('./transport');
+import baTransport from './transport';
 import * as baServices from './services';
-const baAsn1            = require('./asn1');
-const baApdu            = require('./apdu');
-const baNpdu            = require('./npdu');
-const baBvlc            = require('./bvlc');
+import * as baAsn1 from './asn1';
+import * as baApdu from './apdu';
+import * as baNpdu from './npdu';
+import * as baBvlc from './bvlc';
 import * as baEnum from './enum';
+import { InternalBuffer } from './types';
+const trace = require('debug')('bacnet:transport:trace');
 
 const ALL_INTERFACES = '0.0.0.0';
 const LOCALHOST_INTERFACES_IPV4 = '127.0.0.1';
@@ -24,42 +25,50 @@ const BVLC_FWD_HEADER_LENGTH = 10; // FORWARDED_NPDU
 
 const beU = baEnum.UnconfirmedServiceChoice;
 const unconfirmedServiceMap = {
-  [beU.I_AM]:                           'iAm',
-  [beU.WHO_IS]:                         'whoIs',
-  [beU.WHO_HAS]:                        'whoHas',
-  [beU.UNCONFIRMED_COV_NOTIFICATION]:   'covNotifyUnconfirmed',
-  [beU.TIME_SYNCHRONIZATION]:           'timeSync',
-  [beU.UTC_TIME_SYNCHRONIZATION]:       'timeSyncUTC',
+  [beU.I_AM]: 'iAm',
+  [beU.WHO_IS]: 'whoIs',
+  [beU.WHO_HAS]: 'whoHas',
+  [beU.UNCONFIRMED_COV_NOTIFICATION]: 'covNotifyUnconfirmed',
+  [beU.TIME_SYNCHRONIZATION]: 'timeSync',
+  [beU.UTC_TIME_SYNCHRONIZATION]: 'timeSyncUTC',
   [beU.UNCONFIRMED_EVENT_NOTIFICATION]: 'eventNotify',
-  [beU.I_HAVE]:                         'iHave',
-  [beU.UNCONFIRMED_PRIVATE_TRANSFER]:   'privateTransfer',
+  [beU.I_HAVE]: 'iHave',
+  [beU.UNCONFIRMED_PRIVATE_TRANSFER]: 'privateTransfer',
 };
 const beC = baEnum.ConfirmedServiceChoice;
 const confirmedServiceMap = {
-  [beC.READ_PROPERTY]:                'readProperty',
-  [beC.WRITE_PROPERTY]:               'writeProperty',
-  [beC.READ_PROPERTY_MULTIPLE]:       'readPropertyMultiple',
-  [beC.WRITE_PROPERTY_MULTIPLE]:      'writePropertyMultiple',
-  [beC.CONFIRMED_COV_NOTIFICATION]:   'covNotify',
-  [beC.ATOMIC_WRITE_FILE]:            'atomicWriteFile',
-  [beC.ATOMIC_READ_FILE]:             'atomicReadFile',
-  [beC.SUBSCRIBE_COV]:                'subscribeCov',
-  [beC.SUBSCRIBE_COV_PROPERTY]:       'subscribeProperty',
+  [beC.READ_PROPERTY]: 'readProperty',
+  [beC.WRITE_PROPERTY]: 'writeProperty',
+  [beC.READ_PROPERTY_MULTIPLE]: 'readPropertyMultiple',
+  [beC.WRITE_PROPERTY_MULTIPLE]: 'writePropertyMultiple',
+  [beC.CONFIRMED_COV_NOTIFICATION]: 'covNotify',
+  [beC.ATOMIC_WRITE_FILE]: 'atomicWriteFile',
+  [beC.ATOMIC_READ_FILE]: 'atomicReadFile',
+  [beC.SUBSCRIBE_COV]: 'subscribeCov',
+  [beC.SUBSCRIBE_COV_PROPERTY]: 'subscribeProperty',
   [beC.DEVICE_COMMUNICATION_CONTROL]: 'deviceCommunicationControl',
-  [beC.REINITIALIZE_DEVICE]:          'reinitializeDevice',
+  [beC.REINITIALIZE_DEVICE]: 'reinitializeDevice',
   [beC.CONFIRMED_EVENT_NOTIFICATION]: 'eventNotify',
-  [beC.READ_RANGE]:                   'readRange',
-  [beC.CREATE_OBJECT]:                'createObject',
-  [beC.DELETE_OBJECT]:                'deleteObject',
-  [beC.ACKNOWLEDGE_ALARM]:            'alarmAcknowledge',
-  [beC.GET_ALARM_SUMMARY]:            'getAlarmSummary',
-  [beC.GET_ENROLLMENT_SUMMARY]:       'getEnrollmentSummary',
-  [beC.GET_EVENT_INFORMATION]:        'getEventInformation',
-  [beC.LIFE_SAFETY_OPERATION]:        'lifeSafetyOperation',
-  [beC.ADD_LIST_ELEMENT]:             'addListElement',
-  [beC.REMOVE_LIST_ELEMENT]:          'removeListElement',
-  [beC.CONFIRMED_PRIVATE_TRANSFER]:   'privateTransfer',
+  [beC.READ_RANGE]: 'readRange',
+  [beC.CREATE_OBJECT]: 'createObject',
+  [beC.DELETE_OBJECT]: 'deleteObject',
+  [beC.ACKNOWLEDGE_ALARM]: 'alarmAcknowledge',
+  [beC.GET_ALARM_SUMMARY]: 'getAlarmSummary',
+  [beC.GET_ENROLLMENT_SUMMARY]: 'getEnrollmentSummary',
+  [beC.GET_EVENT_INFORMATION]: 'getEventInformation',
+  [beC.LIFE_SAFETY_OPERATION]: 'lifeSafetyOperation',
+  [beC.ADD_LIST_ELEMENT]: 'addListElement',
+  [beC.REMOVE_LIST_ELEMENT]: 'removeListElement',
+  [beC.CONFIRMED_PRIVATE_TRANSFER]: 'privateTransfer',
 };
+
+type ClientSettings = {
+  port: number,
+  interface: string,
+  transport?: any,
+  broadcastAddress: string,
+  apduTimeout: number
+}
 
 /**
  * To be able to communicate to BACNET devices, you have to initialize a new bacnet instance.
@@ -80,6 +89,13 @@ const confirmedServiceMap = {
  * });
  */
 class Client extends EventEmitter {
+
+  private _settings:ClientSettings
+  private _invokeCounter: number;
+  private _lastSequenceNumber: number;
+
+  private _transport: baTransport
+
   /**
    *
    * @param options
@@ -170,11 +186,11 @@ class Client extends EventEmitter {
    * @returns {{offset: (number), buffer: *}}
    * @private
    */
-  _getBuffer(isForwarded: boolean) {
+  _getBuffer(isForwarded?: boolean) {
     return Object.assign({}, {
       buffer: Buffer.alloc(this._transport.getMaxPayload()),
       offset: isForwarded ? BVLC_FWD_HEADER_LENGTH : BVLC_HEADER_LENGTH
-    });
+    }) as InternalBuffer;
   }
 
   /**
@@ -408,13 +424,13 @@ class Client extends EventEmitter {
         msg = baApdu.decodeSimpleAck(buffer, offset);
         offset += msg.len;
         length -= msg.len;
-        this._invokeCallback(msg.invokeId, null, {msg: msg, buffer: buffer, offset: offset + msg.len, length: length - msg.len});
+        this._invokeCallback(msg.invokeId, null, { msg: msg, buffer: buffer, offset: offset + msg.len, length: length - msg.len });
         break;
       case baEnum.PduType.COMPLEX_ACK:
         msg = baApdu.decodeComplexAck(buffer, offset);
         msg.header = header;
         if ((header.apduType & baEnum.PduConReqBit.SEGMENTED_MESSAGE) === 0) {
-          this._invokeCallback(msg.invokeId, null, {msg: msg, buffer: buffer, offset: offset + msg.len, length: length - msg.len});
+          this._invokeCallback(msg.invokeId, null, { msg: msg, buffer: buffer, offset: offset + msg.len, length: length - msg.len });
         } else {
           this._processSegment(msg, true, buffer, offset + msg.len, length - msg.len);
         }
@@ -458,7 +474,7 @@ class Client extends EventEmitter {
    * @returns {*}
    * @private
    */
-  _handleNpdu(buffer: Buffer, offset: number, msgLength: number, header: {func: number, sender: {address: string, forwardedFrom: string | }}) {
+  _handleNpdu(buffer: Buffer, offset: number, msgLength: number, header: { func: number, sender: { address: string, forwardedFrom: string | } }) {
     // Check data length
     if (msgLength <= 0) {
       return trace('No NPDU data -> Drop package');
